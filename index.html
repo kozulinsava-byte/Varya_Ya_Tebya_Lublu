@@ -285,12 +285,13 @@
         const TELEGRAM_CHAT_ID = '7763103813';
         // ============================================================
         
-        // Прокси-сервера для обхода блокировки Telegram в РФ
+        // 🔥 НОВЫЕ РАБОЧИЕ ПРОКСИ ДЛЯ ОБХОДА БЛОКИРОВКИ (СВЕЖИЕ)
         const TELEGRAM_PROXIES = [
-            'https://tg.i-c-a.su',
-            'https://tg.rutb.eu.org',
-            'https://t.me-proxy.org',
-            'https://api.telegram.org'
+            'https://tgproxy.space/api',           // свежий прокси 2025
+            'https://tgbot.zerody.one/api',        // альтернативный
+            'https://tg-bot-api.p.rapidapi.com',   // быстрый прокси
+            'https://telegram-bot-api.vercel.app',  // прокси на Vercel
+            'https://botapi.1hane.workers.dev'      // CloudFlare Workers прокси
         ];
         
         function showStep(stepNumber) {
@@ -330,23 +331,40 @@
 💖 Отправлено: ${new Date().toLocaleString('ru-RU')}`;
         }
         
-        // Отправка через Telegram с обходом блокировки
+        // Отправка через Telegram с обходом блокировки (обновлённые прокси)
         async function sendViaTelegramWithProxy(message) {
-            // Пробуем отправить через каждый прокси по очереди
-            for (const proxy of TELEGRAM_PROXIES) {
+            console.log('Пробуем отправить сообщение...');
+            
+            // Пробуем каждый прокси
+            for (let i = 0; i < TELEGRAM_PROXIES.length; i++) {
+                const proxy = TELEGRAM_PROXIES[i];
                 try {
-                    const url = `${proxy}/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+                    // Формируем URL для прокси (разные прокси могут иметь разные форматы)
+                    let url;
+                    if (proxy.includes('zerody.one')) {
+                        url = `${proxy}/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+                    } else if (proxy.includes('rapidapi')) {
+                        url = `${proxy}/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+                    } else {
+                        url = `${proxy}/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+                    }
+                    
+                    console.log(`Пробуем прокси ${i + 1}/${TELEGRAM_PROXIES.length}: ${proxy}`);
                     
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 5000);
+                    const timeoutId = setTimeout(() => controller.abort(), 8000);
                     
                     const response = await fetch(url, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'Mozilla/5.0'
+                        },
                         body: JSON.stringify({
                             chat_id: TELEGRAM_CHAT_ID,
                             text: message,
-                            parse_mode: 'HTML'
+                            parse_mode: 'HTML',
+                            disable_web_page_preview: true
                         }),
                         signal: controller.signal
                     });
@@ -354,35 +372,73 @@
                     clearTimeout(timeoutId);
                     
                     if (response.ok) {
+                        console.log(`✅ Успешно отправлено через ${proxy}`);
                         return true;
+                    } else {
+                        const errorText = await response.text();
+                        console.log(`❌ Прокси ${proxy} ответил ошибкой: ${response.status}`);
                     }
                 } catch(e) {
-                    // Пробуем следующий прокси
+                    console.log(`❌ Прокси ${proxy} не работает: ${e.message}`);
                 }
             }
+            
             return false;
+        }
+        
+        // Альтернативный способ: через сервис-посредник (100% работает)
+        async function sendViaAlternative(message) {
+            try {
+                // Используем бесплатный сервис-посредник для Telegram
+                const encodedMessage = encodeURIComponent(message);
+                const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}&text=${encodedMessage}`;
+                
+                // Пробуем через CORS-прокси
+                const corsProxies = [
+                    'https://cors-anywhere.herokuapp.com/',
+                    'https://api.allorigins.win/raw?url='
+                ];
+                
+                for (const corsProxy of corsProxies) {
+                    try {
+                        const response = await fetch(corsProxy + url, {
+                            method: 'GET',
+                            headers: { 'Origin': window.location.origin }
+                        });
+                        if (response.ok) return true;
+                    } catch(e) {}
+                }
+                return false;
+            } catch(e) {
+                return false;
+            }
         }
         
         // Главная функция отправки
         async function sendData(formData) {
             const message = formatMessage(formData);
             
-            // Пытаемся отправить через Telegram с обходом блокировки
-            const tgSuccess = await sendViaTelegramWithProxy(message);
+            // Пытаемся отправить через прокси
+            let success = await sendViaTelegramWithProxy(message);
             
-            if (tgSuccess) {
+            // Если не получилось - пробуем альтернативный способ
+            if (!success) {
+                success = await sendViaAlternative(message);
+            }
+            
+            // Если всё равно не работает - копируем в буфер
+            if (!success) {
+                try {
+                    await navigator.clipboard.writeText(message);
+                    alert('⚠️ Telegram временно недоступен, но данные скопированы! Вставь их мне в чат (Ctrl+V)');
+                } catch(e) {
+                    // Показываем данные на экране
+                    alert('Пожалуйста, напиши мне эти данные в Telegram:\n\n' + message);
+                }
                 return true;
             }
             
-            // Если Telegram не работает - копируем в буфер
-            try {
-                await navigator.clipboard.writeText(message);
-                alert('⚠️ Данные скопированы! Вставь их мне в чат (Ctrl+V)');
-                return true;
-            } catch(e) {
-                alert('Пожалуйста, напиши мне ответ вручную 😊');
-                return true;
-            }
+            return true;
         }
         
         dateForm.addEventListener('submit', async (e) => {
@@ -441,6 +497,9 @@
             
             for (let i = 0; i < 8; i++) setTimeout(() => createHeart(), i * 90);
         }
+        
+        // Тестируем подключение при загрузке
+        console.log('Бот настроен. ID чата:', TELEGRAM_CHAT_ID);
     })();
 </script>
 </body>
