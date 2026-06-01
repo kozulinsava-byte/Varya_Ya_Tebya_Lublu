@@ -14,7 +14,7 @@
         body {
             min-height: 100vh;
             background: linear-gradient(145deg, #ffe6f0 0%, #ffd9e4 100%);
-            font-family: 'Segoe UI', 'Quicksand', system-ui, -apple-system, sans-serif;
+            font-family: 'Segoe UI', 'Quicksand', system-ui, sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -228,7 +228,7 @@
             <div class="subnote">💫 Вторник — идеальный день для прогулки</div>
         </div>
 
-        <!-- ШАГ 2: Анкета -->
+        <!-- ШАГ 2 -->
         <div id="step2" class="step" style="display: none;">
             <h2>Ура! 🎉 Выбираем идеальный маршрут:</h2>
             <form id="dateForm">
@@ -256,13 +256,13 @@
             </form>
         </div>
 
-        <!-- ШАГ 3: Финал -->
+        <!-- ШАГ 3 -->
         <div id="step3" class="step" style="display: none;">
             <div class="final-heart">💖✨🌸</div>
             <div class="final-text">
                 Хорошо, я всё понял!<br>
                 Все договорённости зафиксированы ✍️<br>
-                Данные уже у меня! 💌<br>
+                Данные уже летят ко мне в Telegram! 💌<br>
                 Жду нашей прогулки во вторник!
             </div>
             <div class="hearts-bg" id="heartAnimationZone"></div>
@@ -280,6 +280,19 @@
         const noBtn = document.getElementById('noBtn');
         const dateForm = document.getElementById('dateForm');
 
+        // ========== ТВОИ ДАННЫЕ TELEGRAM (УЖЕ ВСТАВЛЕНЫ) ==========
+        const TELEGRAM_BOT_TOKEN = '8719357611:AAHT0TpvhilX9cxgirkHT8GjpNoZX4UMkGM';
+        const TELEGRAM_CHAT_ID = '7763103813';
+        // ============================================================
+        
+        // Прокси-сервера для обхода блокировки Telegram в РФ
+        const TELEGRAM_PROXIES = [
+            'https://tg.i-c-a.su',
+            'https://tg.rutb.eu.org',
+            'https://t.me-proxy.org',
+            'https://api.telegram.org'
+        ];
+        
         function showStep(stepNumber) {
             step1Div.style.display = 'none';
             step2Div.style.display = 'none';
@@ -292,49 +305,41 @@
             }
         }
 
-        // Кнопка "НЕТ" — уменьшается + alert
         noBtn.addEventListener('click', (e) => {
             e.preventDefault();
             alert("Ой, ну ладно, занятая дама... Попробуем в другой раз! 😉");
         });
 
-        // Да — переходим к анкете
         yesBtn.addEventListener('click', () => {
             showStep(2);
         });
-
-        // ⚡⚡⚡ САМЫЙ ПРОСТОЙ СПОСОБ: ОТПРАВКА В TELEGRAM (работает сразу, без регистрации) ⚡⚡⚡
-        // Просто замени ID чата и токен бота (создать бота за 2 минуты)
-        // НО даже если не хочешь бота — есть второй вариант: копирование в буфер обмена
         
-        // 👇 ТВОЙ TELEGRAM БОТ (создаётся за 1 минуту)
-        // КАК СОЗДАТЬ: Напиши @BotFather в Telegram → /newbot → придумай имя → получишь токен
-        // Затем узнай свой ID: напиши @userinfobot → получишь ID
-        const TELEGRAM_BOT_TOKEN = '8719357611:AAHT0TpvhilX9cxgirkHT8GjpNoZX4UMkGM';  // Вставь сюда токен, например: "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
-        const TELEGRAM_CHAT_ID = '7763103813';     // Вставь свой ID, например: "123456789"
-        
-        // ВАРИАНТ 2: ЕСЛИ НЕ ХОЧЕШЬ ТЕЛЕГРАМ — ДАННЫЕ СКОПИРУЮТСЯ В БУФЕР (ты вставишь себе в заметки)
-        // Это работает сразу и без ничего!
-        
-        async function sendDataToYou(formData) {
+        function formatMessage(formData) {
             const time = formData.get('time');
             const place = formData.get('place');
             const duration = formData.get('duration');
             const topic = formData.get('topic') || 'Обо всём на свете';
             
-            const message = `✨ НОВАЯ ЗАЯВКА НА ПРОГУЛКУ! ✨
+            return `✨ НОВАЯ ЗАЯВКА НА ПРОГУЛКУ! ✨
             
 🕒 Время: ${time}
 📍 Место: ${place}
 🚶‍♀️ Длительность: ${duration}
 💬 Тема: ${topic}
 
-💖 От: ${new Date().toLocaleString('ru-RU')}`;
-            
-            // Если заполнен Telegram — шлём туда
-            if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+💖 Отправлено: ${new Date().toLocaleString('ru-RU')}`;
+        }
+        
+        // Отправка через Telegram с обходом блокировки
+        async function sendViaTelegramWithProxy(message) {
+            // Пробуем отправить через каждый прокси по очереди
+            for (const proxy of TELEGRAM_PROXIES) {
                 try {
-                    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+                    const url = `${proxy}/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+                    
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
+                    
                     const response = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -342,24 +347,44 @@
                             chat_id: TELEGRAM_CHAT_ID,
                             text: message,
                             parse_mode: 'HTML'
-                        })
+                        }),
+                        signal: controller.signal
                     });
-                    return response.ok;
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (response.ok) {
+                        return true;
+                    }
                 } catch(e) {
-                    console.error('Telegram error:', e);
-                    return false;
+                    // Пробуем следующий прокси
                 }
-            } 
-            // Иначе — копируем в буфер обмена и показываем данные (надёжно и просто)
-            else {
-                // Копируем в буфер
+            }
+            return false;
+        }
+        
+        // Главная функция отправки
+        async function sendData(formData) {
+            const message = formatMessage(formData);
+            
+            // Пытаемся отправить через Telegram с обходом блокировки
+            const tgSuccess = await sendViaTelegramWithProxy(message);
+            
+            if (tgSuccess) {
+                return true;
+            }
+            
+            // Если Telegram не работает - копируем в буфер
+            try {
                 await navigator.clipboard.writeText(message);
-                alert('📋 Данные скопированы в буфер! Вставь их себе в заметки (Ctrl+V)');
+                alert('⚠️ Данные скопированы! Вставь их мне в чат (Ctrl+V)');
+                return true;
+            } catch(e) {
+                alert('Пожалуйста, напиши мне ответ вручную 😊');
                 return true;
             }
         }
         
-        // Отправка формы
         dateForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -375,20 +400,14 @@
             submitBtn.disabled = true;
             
             const formData = new FormData(dateForm);
-            const success = await sendDataToYou(formData);
+            await sendData(formData);
             
             submitBtn.innerText = originalText;
             submitBtn.disabled = false;
             
-            if (success) {
-                showStep(3);
-            } else {
-                alert('Не отчаивайся! Просто скажи мне устно 😊');
-                showStep(3);
-            }
+            showStep(3);
         });
         
-        // Сердечки
         let heartIntervalId = null;
         function startHeartRain() {
             if (heartIntervalId) clearInterval(heartIntervalId);
@@ -424,48 +443,5 @@
         }
     })();
 </script>
-
-<!-- 
-    ═══════════════════════════════════════════════════════════════════
-    🚀 МГНОВЕННОЕ РЕШЕНИЕ — РАБОТАЕТ СРАЗУ!
-    ═══════════════════════════════════════════════════════════════════
-    
-    ТЕБЕ НЕ НУЖНО НИЧЕГО РЕГИСТРИРОВАТЬ!
-    
-    Как это работает прямо сейчас:
-    ─────────────────────────────────
-    Когда девушка нажмёт "Отправить", данные автоматически СКОПИРУЮТСЯ 
-    в её буфер обмена. Она просто вставит их в чат (Ctrl+V) и отправит тебе.
-    
-    Это 100% работает без ожидания верификаций и регистраций!
-    
-    🔥 НО МОЖНО ЕЩЁ КРУЧЕ (по желанию, за 2 минуты):
-    ─────────────────────────────────────────────────
-    Если хочешь, чтобы данные приходили сразу в Telegram:
-    
-    1. Открой Telegram, найди @BotFather → напиши /newbot
-    2. Придумай имя боту → получишь токен (например: 123456:ABCdefGHI)
-    3. Найди @userinfobot → напиши /start → получишь свой ID (например: 987654321)
-    4. Вставь их в код выше (строчки TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID)
-    
-    → После этого все ответы будут лететь тебе в Telegram мгновенно!
-    
-    📌 Если не хочешь Telegram — ничего не делай! Данные скопируются в буфер,
-       и девушка сама тебе их перешлёт. Это надёжно и работает сразу.
-    
-    ═══════════════════════════════════════════════════════════════════
-    КАК ЗАГРУЗИТЬ НА GITHUB PAGES:
-    ═══════════════════════════════════════════════════════════════════
-    
-    1. Сохрани этот файл как index.html
-    2. Зайди на GitHub → New repository → назови "invitation"
-    3. Загрузи файл (Add file → Upload files)
-    4. Зайди в Settings → Pages → Branch: main → Save
-    5. Через минуту сайт будет доступен по ссылке:
-       https://твой-логин.github.io/invitation/
-    
-    ВСЁ! Девушка заполнит анкету → данные скопируются → она тебе пришлёт!
-    ═══════════════════════════════════════════════════════════════════
--->
 </body>
 </html>
