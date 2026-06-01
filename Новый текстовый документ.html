@@ -228,7 +228,7 @@
             <div class="subnote">💫 Вторник — идеальный день для прогулки</div>
         </div>
 
-        <!-- ШАГ 2: Анкета -->
+        <!-- ШАГ 2 -->
         <div id="step2" class="step" style="display: none;">
             <h2>Ура! 🎉 Выбираем идеальный маршрут:</h2>
             <form id="dateForm">
@@ -256,13 +256,13 @@
             </form>
         </div>
 
-        <!-- ШАГ 3: Финал -->
+        <!-- ШАГ 3 -->
         <div id="step3" class="step" style="display: none;">
             <div class="final-heart">💖✨🌸</div>
             <div class="final-text">
                 Хорошо, я всё понял!<br>
                 Все договорённости зафиксированы ✍️<br>
-                Данные уже у меня! 💌<br>
+                Данные уже летят ко мне! 💌<br>
                 Жду нашей прогулки во вторник!
             </div>
             <div class="hearts-bg" id="heartAnimationZone"></div>
@@ -280,6 +280,17 @@
         const noBtn = document.getElementById('noBtn');
         const dateForm = document.getElementById('dateForm');
 
+        // ========== 🔥 ВСТАВЬ СВОИ ДАННЫЕ СЮДА 🔥 ==========
+        // Как получить за 30 секунд:
+        // 1. Открой Telegram, найди @BotFather → напиши /newbot → создай бота → получи ТОКЕН
+        // 2. Найди @userinfobot → напиши /start → получи свой ID
+        // 3. Вставь их ниже:
+        
+        const TELEGRAM_BOT_TOKEN = 'ВСТАВЬ_СВОЙ_ТОКЕН_СЮДА';   // Пример: '7123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw'
+        const TELEGRAM_CHAT_ID = '7763103813';        // Пример: '123456789'
+        
+        // ========== ВСЁ! БОЛЬШЕ НИЧЕГО НЕ ТРОГАЙ ==========
+        
         function showStep(stepNumber) {
             step1Div.style.display = 'none';
             step2Div.style.display = 'none';
@@ -292,31 +303,16 @@
             }
         }
 
-        // Кнопка "НЕТ" — уменьшается + alert
         noBtn.addEventListener('click', (e) => {
             e.preventDefault();
             alert("Ой, ну ладно, занятая дама... Попробуем в другой раз! 😉");
         });
 
-        // Да — переходим к анкете
         yesBtn.addEventListener('click', () => {
             showStep(2);
         });
 
-        // ⚡⚡⚡ САМЫЙ ПРОСТОЙ СПОСОБ: ОТПРАВКА В TELEGRAM (работает сразу, без регистрации) ⚡⚡⚡
-        // Просто замени ID чата и токен бота (создать бота за 2 минуты)
-        // НО даже если не хочешь бота — есть второй вариант: копирование в буфер обмена
-        
-        // 👇 ТВОЙ TELEGRAM БОТ (создаётся за 1 минуту)
-        // КАК СОЗДАТЬ: Напиши @BotFather в Telegram → /newbot → придумай имя → получишь токен
-        // Затем узнай свой ID: напиши @userinfobot → получишь ID
-        const TELEGRAM_BOT_TOKEN = '';  // Вставь сюда токен, например: "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
-        const TELEGRAM_CHAT_ID = '';     // Вставь свой ID, например: "123456789"
-        
-        // ВАРИАНТ 2: ЕСЛИ НЕ ХОЧЕШЬ ТЕЛЕГРАМ — ДАННЫЕ СКОПИРУЮТСЯ В БУФЕР (ты вставишь себе в заметки)
-        // Это работает сразу и без ничего!
-        
-        async function sendDataToYou(formData) {
+        async function sendToTelegram(formData) {
             const time = formData.get('time');
             const place = formData.get('place');
             const duration = formData.get('duration');
@@ -329,37 +325,45 @@
 🚶‍♀️ Длительность: ${duration}
 💬 Тема: ${topic}
 
-💖 От: ${new Date().toLocaleString('ru-RU')}`;
+💖 Отправлено: ${new Date().toLocaleString('ru-RU')}`;
             
-            // Если заполнен Telegram — шлём туда
-            if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
-                try {
-                    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chat_id: TELEGRAM_CHAT_ID,
-                            text: message,
-                            parse_mode: 'HTML'
-                        })
-                    });
-                    return response.ok;
-                } catch(e) {
-                    console.error('Telegram error:', e);
+            // Проверяем, вставил ли пользователь реальные данные
+            if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN === '8719357611:AAHT0TpvhilX9cxgirkHT8GjpNoZX4UMkGM' || 
+                !TELEGRAM_CHAT_ID || TELEGRAM_CHAT_ID === '7763103813') {
+                // Если не настроил — копируем в буфер
+                await navigator.clipboard.writeText(message);
+                alert('📋 Настрой Telegram бота (инструкция выше), пока данные скопированы! Вставь их себе в заметки.');
+                return true;
+            }
+            
+            try {
+                const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: TELEGRAM_CHAT_ID,
+                        text: message,
+                        parse_mode: 'HTML'
+                    })
+                });
+                
+                if (response.ok) {
+                    return true;
+                } else {
+                    const error = await response.json();
+                    console.error('Telegram error:', error);
+                    alert('Ошибка: проверь токен и ID (скопируй их точно без пробелов)');
                     return false;
                 }
-            } 
-            // Иначе — копируем в буфер обмена и показываем данные (надёжно и просто)
-            else {
-                // Копируем в буфер
+            } catch(e) {
+                console.error('Network error:', e);
+                alert('Ошибка соединения, но данные скопированы в буфер!');
                 await navigator.clipboard.writeText(message);
-                alert('📋 Данные скопированы в буфер! Вставь их себе в заметки (Ctrl+V)');
                 return true;
             }
         }
         
-        // Отправка формы
         dateForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -375,20 +379,14 @@
             submitBtn.disabled = true;
             
             const formData = new FormData(dateForm);
-            const success = await sendDataToYou(formData);
+            const success = await sendToTelegram(formData);
             
             submitBtn.innerText = originalText;
             submitBtn.disabled = false;
             
-            if (success) {
-                showStep(3);
-            } else {
-                alert('Не отчаивайся! Просто скажи мне устно 😊');
-                showStep(3);
-            }
+            showStep(3);
         });
         
-        // Сердечки
         let heartIntervalId = null;
         function startHeartRain() {
             if (heartIntervalId) clearInterval(heartIntervalId);
@@ -427,44 +425,45 @@
 
 <!-- 
     ═══════════════════════════════════════════════════════════════════
-    🚀 МГНОВЕННОЕ РЕШЕНИЕ — РАБОТАЕТ СРАЗУ!
+    🚀 КАК НАСТРОИТЬ TELEGRAM БОТА (ЗА 1 МИНУТУ)
     ═══════════════════════════════════════════════════════════════════
     
-    ТЕБЕ НЕ НУЖНО НИЧЕГО РЕГИСТРИРОВАТЬ!
+    ШАГ 1: Получить ТОКЕН бота
+    ──────────────────────────
+    → Открой Telegram
+    → Найди @BotFather (в поиске)
+    → Напиши ему: /newbot
+    → Придумай имя боту (например: "Мой бот для прогулок")
+    → Придумай username (должен заканчиваться на _bot, например: my_walk_bot)
+    → BotFather даст тебе ТОКЕН, выглядит так: 7123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw
+    → Скопируй этот ТОКЕН
     
-    Как это работает прямо сейчас:
-    ─────────────────────────────────
-    Когда девушка нажмёт "Отправить", данные автоматически СКОПИРУЮТСЯ 
-    в её буфер обмена. Она просто вставит их в чат (Ctrl+V) и отправит тебе.
+    ШАГ 2: Получить свой ID
+    ───────────────────────
+    → Найди @userinfobot
+    → Напиши ему: /start
+    → Он ответит: "Your user ID: 123456789"
+    → Скопируй эту цифру (ID)
     
-    Это 100% работает без ожидания верификаций и регистраций!
+    ШАГ 3: Вставить в код
+    ─────────────────────
+    → Найди в коде строчки:
+        const TELEGRAM_BOT_TOKEN = 'ВСТАВЬ_СВОЙ_ТОКЕН_СЮДА';
+        const TELEGRAM_CHAT_ID = 'ВСТАВЬ_СВОЙ_ID_СЮДА';
+    → Замени текст в кавычках на свои значения
     
-    🔥 НО МОЖНО ЕЩЁ КРУЧЕ (по желанию, за 2 минуты):
-    ─────────────────────────────────────────────────
-    Если хочешь, чтобы данные приходили сразу в Telegram:
-    
-    1. Открой Telegram, найди @BotFather → напиши /newbot
-    2. Придумай имя боту → получишь токен (например: 123456:ABCdefGHI)
-    3. Найди @userinfobot → напиши /start → получишь свой ID (например: 987654321)
-    4. Вставь их в код выше (строчки TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID)
-    
-    → После этого все ответы будут лететь тебе в Telegram мгновенно!
-    
-    📌 Если не хочешь Telegram — ничего не делай! Данные скопируются в буфер,
-       и девушка сама тебе их перешлёт. Это надёжно и работает сразу.
+    ВСЁ! Теперь когда девушка отправит форму — 
+    тебе сразу прилетит сообщение в Telegram! 💌
     
     ═══════════════════════════════════════════════════════════════════
-    КАК ЗАГРУЗИТЬ НА GITHUB PAGES:
+    ЕСЛИ НЕ ХОЧЕШЬ TELEGRAM — НИЧЕГО НЕ НАСТРАИВАЙ!
     ═══════════════════════════════════════════════════════════════════
     
-    1. Сохрани этот файл как index.html
-    2. Зайди на GitHub → New repository → назови "invitation"
-    3. Загрузи файл (Add file → Upload files)
-    4. Зайди в Settings → Pages → Branch: main → Save
-    5. Через минуту сайт будет доступен по ссылке:
-       https://твой-логин.github.io/invitation/
+    Если оставить поля пустыми, данные скопируются в буфер обмена,
+    и девушка сама сможет вставить их тебе в чат.
     
-    ВСЁ! Девушка заполнит анкету → данные скопируются → она тебе пришлёт!
+    Это 100% работает без регистраций!
+    
     ═══════════════════════════════════════════════════════════════════
 -->
 </body>
